@@ -1,0 +1,30 @@
+name: Deploy to Digital Ocean
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER: ${{ secrets.SERVER }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key
+          chmod 600 private_key
+          # Subir todo el repositorio al servidor
+          scp -i private_key -o StrictHostKeyChecking=no -r ./* $SERVER:/var/www/html/imagination/
+          ssh -i private_key -o StrictHostKeyChecking=no $SERVER << 'EOF'
+            cd /var/www/html/imagination/
+            npm install
+            npm run build
+            pm2 restart imagination || pm2 start npm --name "imagination" -- run start:prod
+          EOF
